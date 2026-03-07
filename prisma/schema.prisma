@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id         Int        @id @default(autoincrement())
+  name       String
+  email      String     @unique
+  password   String // Encrypted
+  role          String         @default("admin")
+  properties    Property[]
+  assignedLeads Lead[]         @relation("AssignedTo")
+  activities    LeadActivity[]
+}
+
+
+model Property {
+  id            Int            @id @default(autoincrement())
+  title         String
+  description   String
+  price         Float
+  location      String
+  area_size     String
+  property_type String         // Residential / Commercial / Villa / Shop
+  bedrooms      Int?           @default(0)
+  bathrooms     Int?           @default(0)
+  amenities     String?        // comma-separated or JSON string
+  is_featured   Boolean        @default(false)
+  status        String         @default("Draft") // Draft / Published
+  created_at    DateTime       @default(now())
+  agent_id      Int?           // Optional connection to an admin user
+  agent         AdminUser?     @relation(fields: [agent_id], references: [id], onDelete: SetNull)
+  images        PropertyImage[]
+  leads         Lead[]
+}
+
+model PropertyImage {
+  id          Int      @id @default(autoincrement())
+  property_id Int
+  image_url   String
+  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+}
+
+model BlogCategory {
+  id            Int        @id @default(autoincrement())
+  category_name String     @unique
+  posts         BlogPost[]
+}
+
+model BlogPost {
+  id               Int          @id @default(autoincrement())
+  title            String
+  slug             String       @unique
+  featured_image   String?
+  content          String       // Rich Text
+  category_id      Int
+  meta_title       String?
+  meta_description String?
+  status           String       @default("Draft") // Draft / Published
+  created_at       DateTime     @default(now())
+  category         BlogCategory @relation(fields: [category_id], references: [id], onDelete: Cascade)
+}
+
+model Lead {
+  id             Int            @id @default(autoincrement())
+  name           String
+  phone          String
+  email          String
+  message        String?
+  property_id    Int?
+  status         String         @default("New") // New, Contacted, Follow-up, Site Visit, Negotiation, Converted, Lost
+  source         String         @default("Website") // Website, Facebook, Instagram, WhatsApp, Referral, Walk-in
+  assigned_to_id Int?
+  follow_up_date DateTime?
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @default(now()) @updatedAt
+  
+  property       Property?      @relation(fields: [property_id], references: [id], onDelete: SetNull)
+  assigned_to    AdminUser?     @relation("AssignedTo", fields: [assigned_to_id], references: [id], onDelete: SetNull)
+  activities     LeadActivity[]
+}
+
+model LeadActivity {
+  id          Int       @id @default(autoincrement())
+  lead_id     Int
+  user_id     Int?
+  action_type String    // Status Change, Assigned, Note, Created, etc.
+  note        String?
+  timestamp   DateTime  @default(now())
+  
+  lead        Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  user        AdminUser? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+}

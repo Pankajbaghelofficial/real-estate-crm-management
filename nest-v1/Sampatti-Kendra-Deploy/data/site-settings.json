@@ -1,0 +1,37 @@
+{
+  "siteName": "Real Estate CRM",
+  "tagline": "Premium Properties in Agra",
+  "logoUrl": "/uploads/logo.png",
+  "faviconUrl": "/uploads/favicon.ico",
+  "whatsapp": "+917983804875",
+  "phone": "+91 7983804875",
+  "email": "info@sampattikendra.com",
+  "address": "Agra, Uttar Pradesh, India",
+  "heroSlides": [
+    {
+      "image_url": "/uploads/upload_1772294874052_2tb8if8jsyn.jpg",
+      "id": "at8cc7rix",
+      "order": 0
+    },
+    {
+      "image_url": "/uploads/upload_1772294916292_5ywem5a2a34.jpg",
+      "id": "o4ktzi94b",
+      "order": 1
+    },
+    {
+      "image_url": "/uploads/upload_1772294960280_ieevgxz7qxr.jpg",
+      "id": "6ekbfcd2l",
+      "order": 2
+    },
+    {
+      "image_url": "/uploads/upload_1772273681739_xvpe7j0ixoe.webp",
+      "id": "18l9b5zhv",
+      "order": 3
+    },
+    {
+      "image_url": "/uploads/upload_1772177963149_ppia48bq5pk.png",
+      "id": "gf9zjtqo2",
+      "order": 4
+    }
+  ]
+}
