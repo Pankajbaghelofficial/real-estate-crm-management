@@ -1,7 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { requirePageRole } from '@/lib/authz';
+import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 
-const prisma = new PrismaClient();
 
 function timeAgo(date: Date): string {
     const now = new Date();
@@ -13,6 +13,7 @@ function timeAgo(date: Date): string {
 }
 
 export default async function NotificationsPage() {
+    await requirePageRole('superadmin');
     // Fetch leads (form submissions) from the database
     const leads = await prisma.lead.findMany({
         orderBy: { created_at: 'desc' },

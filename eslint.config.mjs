@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Old archived copies of the app, not part of the build:
+    "v4/**",
+    "nest-v1/**",
   ]),
 ]);
 

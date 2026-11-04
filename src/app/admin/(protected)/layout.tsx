@@ -1,27 +1,20 @@
-import { getServerSession } from 'next-auth';
-import { redirect } from 'next/navigation';
-import { authOptions } from '@/lib/auth';
 import AdminLayoutClient from '@/app/admin/(protected)/AdminLayoutClient';
 import { getSiteSettings } from '@/lib/siteSettings';
+import { requirePageRole } from '@/lib/authz';
+
+export const dynamic = 'force-dynamic';
 
 export default async function AdminLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
-        redirect('/admin/login');
-    }
-
-    const userName = session.user?.name || 'Admin';
-    const userEmail = session.user?.email || 'admin@sampattikendra.com';
-    const userRole = (session.user as any).role || 'admin';
+    // Validates the session against the DB (deleted users are rejected).
+    const user = await requirePageRole('agent');
     const settings = getSiteSettings();
 
     return (
-        <AdminLayoutClient userName={userName} userEmail={userEmail} userRole={userRole} settings={settings}>
+        <AdminLayoutClient userName={user.name || 'Admin'} userEmail={user.email} userRole={user.role} settings={settings}>
             {children}
         </AdminLayoutClient>
     );

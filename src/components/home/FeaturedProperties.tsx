@@ -1,7 +1,6 @@
 import Link from 'next/link';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
 
 function formatPrice(price: number): string {
     if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)} Cr`;

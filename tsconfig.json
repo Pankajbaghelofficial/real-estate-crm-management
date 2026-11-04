@@ -37,6 +37,8 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "v4",
+    "nest-v1"
   ]
 }

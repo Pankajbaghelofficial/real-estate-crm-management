@@ -1,8 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { sanitizeRichText } from '@/lib/sanitize';
 import { notFound } from 'next/navigation';
 import PropertyDetailsClient from './PropertyDetailsClient';
 
-const prisma = new PrismaClient();
 
 export default async function PropertyDetailsPage({ params }: { params: { id: string } }) {
     const { id } = await params;
@@ -22,6 +22,8 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
     if (!property || property.status !== 'Published') {
         notFound();
     }
+    // Defence in depth: content stored before sanitisation was added.
+    property.description = sanitizeRichText(property.description);
 
     // Fetch the raw hidden columns bypassed from DMMF due to MacOS EPERM bug
     const rawData = await prisma.$queryRaw<any[]>`SELECT bedrooms, bathrooms, amenities, agent_id FROM Property WHERE id = ${propertyId}`;

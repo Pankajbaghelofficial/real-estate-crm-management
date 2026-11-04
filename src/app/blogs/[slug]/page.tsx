@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { sanitizeRichText } from '@/lib/sanitize';
 import { notFound } from 'next/navigation';
 
-const prisma = new PrismaClient();
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1574880534246-86d7e6ce3496?q=80&w=1200';
 
 function stripHtml(html: string): string {
@@ -194,7 +194,7 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                             `}</style>
                             <div
                                 className="blog-prose"
-                                dangerouslySetInnerHTML={{ __html: blog.content }}
+                                dangerouslySetInnerHTML={{ __html: sanitizeRichText(blog.content) }}
                             />
                         </div>
 

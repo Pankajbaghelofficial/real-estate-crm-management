@@ -20,7 +20,7 @@ export default function AdminLogin() {
         try {
             const res = await signIn('credentials', { redirect: false, email, password });
             if (res?.error) {
-                setError('Invalid email or password. Please try again.');
+                setError(res.error.startsWith('Too many') ? res.error : 'Invalid email or password. Please try again.');
             } else {
                 router.push('/admin/dashboard');
             }
