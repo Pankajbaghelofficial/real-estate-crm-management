@@ -5,10 +5,10 @@
   "scripts": {
     "dev": "node node_modules/next/dist/bin/next dev",
     "build": "prisma generate && node node_modules/next/dist/bin/next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && node node_modules/next/dist/bin/next build",
+    "vercel-build": "prisma generate && node scripts/db-migrate.mjs && node prisma/seed.js --bootstrap && node node_modules/next/dist/bin/next build",
     "start": "node node_modules/next/dist/bin/next start",
     "lint": "node node_modules/eslint/bin/eslint.js",
-    "db:migrate": "prisma migrate deploy",
+    "db:migrate": "node scripts/db-migrate.mjs",
     "db:seed": "node prisma/seed.js",
     "db:import-sqlite": "node scripts/migrate-sqlite-to-postgres.mjs"
   },
@@ -40,7 +40,7 @@
     "lightningcss-linux-x64-gnu": "^1.29.1"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": "22.x"
   },
   "overrides": {
     "@vercel/cli-config": {

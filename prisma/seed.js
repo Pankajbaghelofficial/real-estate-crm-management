@@ -1,11 +1,18 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- plain Node.js (CommonJS) script */
-// Creates the first super admin. Run from a shell on the server (never over HTTP):
+// Creates the first super admin.
+//
+// Manually (from a shell, never over HTTP):
 //   ADMIN_EMAIL=you@example.com ADMIN_PASSWORD='a-strong-password' node prisma/seed.js
-// Existing users are never modified.
+//   -> creates that user if the email does not exist yet. Existing users are never modified.
+//
+// During deployment (`node prisma/seed.js --bootstrap`, run by `npm run vercel-build`):
+//   -> does nothing unless ADMIN_EMAIL and ADMIN_PASSWORD are set AND the database has no
+//      users at all. So once the first admin exists, these variables have no effect.
 require('dotenv/config');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
+const BOOTSTRAP = process.argv.includes('--bootstrap');
 const prisma = new PrismaClient();
 
 async function main() {
@@ -13,8 +20,20 @@ async function main() {
     const password = process.env.ADMIN_PASSWORD || '';
     const name = process.env.ADMIN_NAME || 'Super Admin';
 
+    if (BOOTSTRAP && !email && !password) {
+        console.log('Admin bootstrap: skipped (ADMIN_EMAIL / ADMIN_PASSWORD not set).');
+        return;
+    }
     if (!email || password.length < 10) {
         throw new Error('Set ADMIN_EMAIL and ADMIN_PASSWORD (min 10 characters) environment variables.');
+    }
+
+    if (BOOTSTRAP) {
+        const users = await prisma.adminUser.count();
+        if (users > 0) {
+            console.log('Admin bootstrap: skipped (users already exist).');
+            return;
+        }
     }
 
     const existing = await prisma.adminUser.findUnique({ where: { email } });

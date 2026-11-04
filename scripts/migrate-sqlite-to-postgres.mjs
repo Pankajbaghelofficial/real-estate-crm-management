@@ -3,7 +3,7 @@
  * One-time copy of the old SQLite database into PostgreSQL (Neon).
  *
  * Usage (run on your computer, not on Vercel):
- *   1. Create the tables in the target first:      npx prisma migrate deploy
+ *   1. Create the tables in the target first:      npm run db:migrate
  *   2. Check the data without writing anything:
  *        SQLITE_FILE=./prisma/prod.db npm run db:import-sqlite -- --dry-run
  *   3. Copy it:
