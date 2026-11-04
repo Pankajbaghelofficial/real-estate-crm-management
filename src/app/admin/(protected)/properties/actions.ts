@@ -1,56 +1,56 @@
 'use server';
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { hasRole, parseId, requireUser } from '@/lib/authz';
+import { isSafeImageUrl } from '@/lib/uploads';
+import { sanitizeRichText } from '@/lib/sanitize';
 
-const prisma = new PrismaClient();
+const STATUSES = ['Draft', 'Published'];
+
+function readPropertyForm(formData: FormData) {
+    const s = (k: string, max = 500) => String(formData.get(k) ?? '').trim().slice(0, max);
+    const title = s('title', 300);
+    const description = sanitizeRichText(String(formData.get('description') ?? '').slice(0, 100_000));
+    const price = parseFloat(s('price').replace(/[^0-9.]/g, '')) || 0;
+    const location = s('location', 300);
+    const area_size = s('area_size', 100);
+    const property_type = s('property_type', 50);
+    const statusRaw = s('status', 20);
+    const status = STATUSES.includes(statusRaw) ? statusRaw : 'Draft';
+    const is_featured = formData.get('is_featured') === 'on';
+    const bedrooms = Math.max(0, Math.min(100, parseInt(s('bedrooms')) || 0));
+    const bathrooms = Math.max(0, Math.min(100, parseInt(s('bathrooms')) || 0));
+    const amenities = s('amenities', 5000);
+    const image_urls = (formData.getAll('image_urls') as string[]).filter(isSafeImageUrl).slice(0, 50);
+
+    if (!title || !location || !property_type) throw new Error('Title, location and property type are required');
+    if (price < 0 || !isFinite(price)) throw new Error('Invalid price');
+
+    return { title, description, price, location, area_size, property_type, status, is_featured, bedrooms, bathrooms, amenities, image_urls };
+}
+
+async function assertCanModify(id: number) {
+    const user = await requireUser('agent');
+    if (!hasRole(user.role, 'admin')) {
+        const prop = await prisma.property.findUnique({ where: { id }, select: { agent_id: true } });
+        if (!prop || prop.agent_id !== user.id) {
+            throw new Error('You can only modify your own properties');
+        }
+    }
+    return user;
+}
+
 
 export async function addProperty(formData: FormData) {
-    const title = formData.get('title') as string;
-    const description = formData.get('description') as string;
-    const priceRaw = formData.get('price') as string;
-    const price = parseFloat(priceRaw.replace(/[^0-9.]/g, '')) || 0;
-    const location = formData.get('location') as string;
-    const area_size = formData.get('area_size') as string;
-    const property_type = formData.get('property_type') as string;
-    const status = formData.get('status') as string;
-    const is_featured = formData.get('is_featured') === 'on';
+    const user = await requireUser('agent');
+    const { image_urls, ...fields } = readPropertyForm(formData);
 
-    // Extra fields
-    const bedrooms = parseInt(formData.get('bedrooms') as string) || 0;
-    const bathrooms = parseInt(formData.get('bathrooms') as string) || 0;
-    const amenities = formData.get('amenities') as string;
-
-    // Multiple images
-    const image_urls = formData.getAll('image_urls') as string[];
-
-    // Get current user for agent_id
-    const session = await getServerSession(authOptions);
-    const agent_email = session?.user?.email;
-    let agent_id: number | undefined;
-
-    if (agent_email) {
-        const user = await prisma.adminUser.findUnique({ where: { email: agent_email } });
-        if (user) agent_id = user.id;
-    }
-
-    const newProp = await prisma.property.create({
+    await prisma.property.create({
         data: {
-            title,
-            description,
-            price,
-            location,
-            area_size,
-            property_type,
-            status,
-            is_featured,
-            bedrooms,
-            bathrooms,
-            amenities,
-            agent_id,
+            ...fields,
+            agent_id: user.id,
             images: {
                 create: image_urls.map(url => ({ image_url: url }))
             }
@@ -58,61 +58,29 @@ export async function addProperty(formData: FormData) {
     });
 
     revalidatePath('/admin/properties');
+    revalidatePath('/properties');
+    revalidatePath('/');
     redirect('/admin/properties');
 }
 
-export async function deleteProperty(id: number) {
-    const session = await getServerSession(authOptions);
-    if (!session) throw new Error('Unauthorized');
-
-    const user = session.user as any;
-    const userRole = user?.role || 'agent';
-    const userId = Number(user?.id);
-
-    if (userRole === 'agent') {
-        const prop = await prisma.property.findUnique({ where: { id } }) as any;
-        if (!prop || prop.agent_id !== userId) {
-            throw new Error('You can only delete your own properties');
-        }
-    }
+export async function deleteProperty(idRaw: number) {
+    const id = parseId(idRaw);
+    if (!id) throw new Error('Invalid property');
+    await assertCanModify(id);
 
     await prisma.property.delete({
         where: { id },
     });
     revalidatePath('/admin/properties');
+    revalidatePath('/properties');
+    revalidatePath('/');
 }
 
-export async function editProperty(id: number, formData: FormData) {
-    const title = formData.get('title') as string;
-    const description = formData.get('description') as string;
-    const priceRaw = formData.get('price') as string;
-    const price = parseFloat(priceRaw.replace(/[^0-9.]/g, '')) || 0;
-    const location = formData.get('location') as string;
-    const area_size = formData.get('area_size') as string;
-    const property_type = formData.get('property_type') as string;
-    const status = formData.get('status') as string;
-    const is_featured = formData.get('is_featured') === 'on';
-
-    // Extra fields
-    const bedrooms = parseInt(formData.get('bedrooms') as string) || 0;
-    const bathrooms = parseInt(formData.get('bathrooms') as string) || 0;
-    const amenities = formData.get('amenities') as string;
-
-    const image_urls = formData.getAll('image_urls') as string[];
-
-    const session = await getServerSession(authOptions);
-    if (!session) throw new Error('Unauthorized');
-
-    const user = session.user as any;
-    const userRole = user?.role || 'agent';
-    const userId = Number(user?.id);
-
-    if (userRole === 'agent') {
-        const prop = await prisma.property.findUnique({ where: { id } }) as any;
-        if (!prop || prop.agent_id !== userId) {
-            throw new Error('You can only edit your own properties');
-        }
-    }
+export async function editProperty(idRaw: number, formData: FormData) {
+    const id = parseId(idRaw);
+    if (!id) throw new Error('Invalid property');
+    await assertCanModify(id);
+    const { image_urls, title, description, price, location, area_size, property_type, status, is_featured, bedrooms, bathrooms, amenities } = readPropertyForm(formData);
 
     await prisma.$transaction([
         // Delete all old images
@@ -142,5 +110,8 @@ export async function editProperty(id: number, formData: FormData) {
     ]);
 
     revalidatePath('/admin/properties');
+    revalidatePath('/properties');
+    revalidatePath(`/properties/${id}`);
+    revalidatePath('/');
     redirect('/admin/properties');
 }

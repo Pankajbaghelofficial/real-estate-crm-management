@@ -5,41 +5,48 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// PostgreSQL (Neon on Vercel).
+//   DATABASE_URL          - pooled connection, used by the app at runtime
+//   DATABASE_URL_UNPOOLED - direct connection, used by `prisma migrate`
+// Locally both can point to the same database.
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 model AdminUser {
-  id         Int        @id @default(autoincrement())
-  name       String
-  email      String     @unique
-  password   String // Encrypted
+  id            Int            @id @default(autoincrement())
+  name          String
+  email         String         @unique
+  password      String // bcrypt hash
   role          String         @default("admin")
   properties    Property[]
   assignedLeads Lead[]         @relation("AssignedTo")
   activities    LeadActivity[]
 }
 
-
 model Property {
-  id            Int            @id @default(autoincrement())
+  id            Int             @id @default(autoincrement())
   title         String
   description   String
   price         Float
   location      String
   area_size     String
-  property_type String         // Residential / Commercial / Villa / Shop
-  bedrooms      Int?           @default(0)
-  bathrooms     Int?           @default(0)
-  amenities     String?        // comma-separated or JSON string
-  is_featured   Boolean        @default(false)
-  status        String         @default("Draft") // Draft / Published
-  created_at    DateTime       @default(now())
-  agent_id      Int?           // Optional connection to an admin user
-  agent         AdminUser?     @relation(fields: [agent_id], references: [id], onDelete: SetNull)
+  property_type String // Residential / Commercial / Villa / Shop
+  bedrooms      Int?            @default(0)
+  bathrooms     Int?            @default(0)
+  amenities     String? // comma-separated or JSON string
+  is_featured   Boolean         @default(false)
+  status        String          @default("Draft") // Draft / Published
+  created_at    DateTime        @default(now())
+  agent_id      Int? // Optional connection to an admin user
+  agent         AdminUser?      @relation(fields: [agent_id], references: [id], onDelete: SetNull)
   images        PropertyImage[]
   leads         Lead[]
+
+  @@index([agent_id])
+  @@index([status, is_featured, created_at])
 }
 
 model PropertyImage {
@@ -47,6 +54,8 @@ model PropertyImage {
   property_id Int
   image_url   String
   property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+
+  @@index([property_id])
 }
 
 model BlogCategory {
@@ -60,42 +69,61 @@ model BlogPost {
   title            String
   slug             String       @unique
   featured_image   String?
-  content          String       // Rich Text
+  content          String // Rich Text (sanitised HTML)
   category_id      Int
   meta_title       String?
   meta_description String?
   status           String       @default("Draft") // Draft / Published
   created_at       DateTime     @default(now())
   category         BlogCategory @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@index([category_id])
+  @@index([status, created_at])
 }
 
 model Lead {
-  id             Int            @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   name           String
   phone          String
   email          String
   message        String?
   property_id    Int?
-  status         String         @default("New") // New, Contacted, Follow-up, Site Visit, Negotiation, Converted, Lost
-  source         String         @default("Website") // Website, Facebook, Instagram, WhatsApp, Referral, Walk-in
+  status         String    @default("New") // New, Contacted, Follow-up, Site Visit, Negotiation, Converted, Lost
+  source         String    @default("Website") // Website, Facebook, Instagram, WhatsApp, Referral, Walk-in
   assigned_to_id Int?
   follow_up_date DateTime?
-  created_at     DateTime       @default(now())
-  updated_at     DateTime       @default(now()) @updatedAt
-  
-  property       Property?      @relation(fields: [property_id], references: [id], onDelete: SetNull)
-  assigned_to    AdminUser?     @relation("AssignedTo", fields: [assigned_to_id], references: [id], onDelete: SetNull)
-  activities     LeadActivity[]
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @default(now()) @updatedAt
+
+  property    Property?      @relation(fields: [property_id], references: [id], onDelete: SetNull)
+  assigned_to AdminUser?     @relation("AssignedTo", fields: [assigned_to_id], references: [id], onDelete: SetNull)
+  activities  LeadActivity[]
+
+  @@index([phone])
+  @@index([assigned_to_id])
+  @@index([property_id])
+  @@index([created_at])
 }
 
 model LeadActivity {
-  id          Int       @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   lead_id     Int
   user_id     Int?
-  action_type String    // Status Change, Assigned, Note, Created, etc.
+  action_type String // Status Change, Assigned, Note, Created, etc.
   note        String?
-  timestamp   DateTime  @default(now())
-  
-  lead        Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
-  user        AdminUser? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  timestamp   DateTime @default(now())
+
+  lead Lead       @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  user AdminUser? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([lead_id, timestamp])
+  @@index([user_id])
+}
+
+// Website settings (name, contact details, logo, hero slides). Single row, id = 1.
+// Replaces data/site-settings.json, which can't be written on Vercel.
+model SiteSettings {
+  id         Int      @id @default(1)
+  data       Json
+  updated_at DateTime @default(now()) @updatedAt
 }

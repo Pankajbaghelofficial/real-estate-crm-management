@@ -252,7 +252,7 @@ export default function UsersClient({ users: initialUsers }: { users: AdminUser[
                         </div>
                         <div>
                             <label style={labelStyle}>Secure Password</label>
-                            <input name="password" type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} placeholder="Min 6 characters" required />
+                            <input name="password" type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} placeholder="Min 8 characters" minLength={8} required />
                         </div>
                         <div>
                             <label style={labelStyle}>Designated Role</label>

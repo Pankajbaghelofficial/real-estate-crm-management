@@ -1,74 +1,31 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { hasRole, requirePageRole } from '@/lib/authz';
 
-const prisma = new PrismaClient();
 
 export default async function AdminDashboard() {
-    const session = await getServerSession(authOptions);
-    const user = session?.user as any;
-    const rawRole = user?.role || 'agent';
-    const userRole = rawRole.toLowerCase();
-    const userId = Number(user?.id);
+    const user = await requirePageRole('agent');
+    const isAdmin = hasRole(user.role, 'admin');
 
-    // Normalize admin roles for internal logic
-    const isAdmin = userRole === 'admin' || userRole === 'superadmin' || userRole === 'super_admin';
+    // Agents: their own properties, and leads assigned to them or on their properties.
+    const propertyWhere = isAdmin ? {} : { agent_id: user.id };
+    const leadWhere = isAdmin
+        ? {}
+        : { OR: [{ assigned_to_id: user.id }, { property: { agent_id: user.id } }] };
 
-    let stats = { totalProperties: 0, publishedBlogs: 0, totalLeads: 0 };
-    let recentLeads: any[] = [];
+    const [totalProperties, publishedBlogs, totalLeads, recentLeads] = await Promise.all([
+        prisma.property.count({ where: propertyWhere }),
+        isAdmin ? prisma.blogPost.count({ where: { status: 'Published' } }) : Promise.resolve(0),
+        prisma.lead.count({ where: leadWhere }),
+        prisma.lead.findMany({
+            where: leadWhere,
+            orderBy: { created_at: 'desc' },
+            take: 5,
+            include: { property: { select: { title: true } } },
+        }),
+    ]);
+    const userRole = isAdmin ? 'admin' : 'agent';
 
-    if (!isAdmin && !isNaN(userId)) {
-        // Agent specific stats
-        const [propCountRows, leadCountRows] = await Promise.all([
-            prisma.$queryRaw`SELECT COUNT(*) as count FROM Property WHERE agent_id = ${userId}`,
-            prisma.$queryRaw`
-                SELECT COUNT(*) as count FROM Lead l 
-                LEFT JOIN Property p ON l.property_id = p.id 
-                WHERE p.agent_id = ${userId} OR l.assigned_to_id = ${userId}
-            `
-        ]) as [any[], any[]];
-
-        stats.totalProperties = Number(propCountRows[0].count);
-        stats.totalLeads = Number(leadCountRows[0].count);
-        stats.publishedBlogs = 0; // Agents typically don't manage blogs
-
-        recentLeads = await prisma.$queryRaw`
-            SELECT l.* FROM Lead l 
-            LEFT JOIN Property p ON l.property_id = p.id 
-            WHERE p.agent_id = ${userId} OR l.assigned_to_id = ${userId}
-            ORDER BY l.created_at DESC LIMIT 5
-        ` as any[];
-
-    } else {
-        // Admin / Superadmin stats
-        const [propCountRows, blogCountRows, leadCountRows] = await Promise.all([
-            prisma.$queryRaw`SELECT COUNT(*) as count FROM Property`,
-            prisma.$queryRaw`SELECT COUNT(*) as count FROM BlogPost WHERE status = 'Published'`,
-            prisma.$queryRaw`SELECT COUNT(*) as count FROM Lead`,
-        ]) as [any[], any[], any[]];
-
-        stats = {
-            totalProperties: Number(propCountRows[0].count),
-            publishedBlogs: Number(blogCountRows[0].count),
-            totalLeads: Number(leadCountRows[0].count)
-        };
-
-        recentLeads = await prisma.$queryRaw`
-            SELECT * FROM Lead 
-            ORDER BY created_at DESC LIMIT 5
-        ` as any[];
-    }
-
-    // Populate property objects manually for component compatibility
-    for (let l of recentLeads) {
-        if (l.property_id) {
-            const propRows: any[] = await prisma.$queryRaw`SELECT * FROM Property WHERE id = ${l.property_id} LIMIT 1`;
-            l.property = propRows[0] || null;
-        }
-    }
-
-    const { totalProperties, publishedBlogs, totalLeads } = stats;
 
     const card = (icon: string, iconBg: string, iconColor: string, label: string, value: string | number, sub: string) => (
         <div className="glass-panel" style={{

@@ -3,8 +3,8 @@ import { getSiteSettings } from '@/lib/siteSettings';
 import HomeHeroSlider from './HomeHeroSlider';
 import HeroInquiryForm from './HeroInquiryForm';
 
-export default function HeroSection() {
-    const settings = getSiteSettings();
+export default async function HeroSection() {
+    const settings = await getSiteSettings();
     const slides = settings.heroSlides || [];
 
     return (

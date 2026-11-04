@@ -1,9 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { hasRole, requirePageRole } from '@/lib/authz';
 import { notFound } from 'next/navigation';
 import { editProperty } from '../../actions';
 import PropertyFormClient from '../../PropertyFormClient';
 
-const prisma = new PrismaClient();
 
 export default async function EditPropertyPage({ params }: { params: { id: string } }) {
     const { id } = await params;
@@ -19,6 +19,11 @@ export default async function EditPropertyPage({ params }: { params: { id: strin
     });
 
     if (!property) {
+        notFound();
+    }
+
+    const user = await requirePageRole('agent');
+    if (!hasRole(user.role, 'admin') && property.agent_id !== user.id) {
         notFound();
     }
 

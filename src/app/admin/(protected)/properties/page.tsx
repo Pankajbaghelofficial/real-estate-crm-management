@@ -1,10 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { deleteProperty } from './actions';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-const prisma = new PrismaClient();
 
 export default async function ManageProperties() {
     const session = await getServerSession(authOptions);

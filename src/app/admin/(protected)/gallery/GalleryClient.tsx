@@ -72,14 +72,21 @@ export default function GalleryClient() {
         const filename = confirmTarget;
         setConfirmTarget(null);
         setDeleting(filename);
-        await fetch('/api/upload', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename }) });
-        if (selected?.filename === filename) setSelected(null);
+        const res = await fetch('/api/upload', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename }) });
+        if (res.ok) {
+            if (selected?.filename === filename) setSelected(null);
+        } else {
+            const data = await res.json().catch(() => ({}));
+            setUploadProgress([`❌ ${data.error || 'Delete failed'}`]);
+            setTimeout(() => setUploadProgress([]), 5000);
+        }
         await loadFiles();
         setDeleting(null);
     }
 
     function copyUrl(url: string) {
-        navigator.clipboard.writeText(window.location.origin + url);
+        // Blob storage returns absolute URLs; local uploads are site-relative.
+        navigator.clipboard.writeText(/^https?:\/\//.test(url) ? url : window.location.origin + url);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     }
@@ -166,7 +173,7 @@ export default function GalleryClient() {
                 <p style={{ margin: 0, fontWeight: 600, color: 'var(--accent-premium-gold)', fontSize: '14px' }}>
                     {dragging ? 'Drop images here!' : 'Drag & drop images here, or click to browse'}
                 </p>
-                <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-admin-dim)' }}>JPEG, PNG, WebP, GIF • Max 5MB each • Multiple files allowed</p>
+                <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-admin-dim)' }}>JPEG, PNG, WebP, GIF • Max 4MB each • Multiple files allowed</p>
             </div>
 
             {/* ── Search ── */}

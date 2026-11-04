@@ -1,10 +1,11 @@
-import { PrismaClient } from '@prisma/client';
+import { requirePageRole } from '@/lib/authz';
+import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { deleteBlog } from './actions';
 
-const prisma = new PrismaClient();
 
 export default async function ManageBlogs() {
+    await requirePageRole('admin');
     const blogs = await prisma.blogPost.findMany({
         orderBy: { created_at: 'desc' },
         include: { category: true },

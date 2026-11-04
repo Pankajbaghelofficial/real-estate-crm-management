@@ -1,83 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir, readdir, stat, unlink } from 'fs/promises';
-import path from 'path';
+import { AuthError, requireUser } from '@/lib/authz';
+import { UploadError, deleteUpload, listUploads, saveImageUpload } from '@/lib/uploads';
 
-const UPLOAD_DIR = () => path.join(process.cwd(), 'public', 'uploads');
+export const dynamic = 'force-dynamic';
 
-/* ─── POST: Upload a file ──────────────────────────── */
+function errorResponse(err: unknown, fallback: string) {
+    if (err instanceof AuthError) {
+        return NextResponse.json({ error: err.message }, { status: err.message === 'Forbidden' ? 403 : 401 });
+    }
+    if (err instanceof UploadError) return NextResponse.json({ error: err.message }, { status: 400 });
+    console.error(`${fallback}:`, err);
+    return NextResponse.json({ error: fallback }, { status: 500 });
+}
+
+/* ─── POST: Upload a file (any logged-in user, e.g. agents adding property photos) ── */
 export async function POST(req: NextRequest) {
     try {
+        await requireUser('agent');
         const formData = await req.formData();
-        const file = formData.get('file') as File;
-        if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+        const file = formData.get('file');
+        if (!(file instanceof File)) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
 
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/jpg'];
-        if (!allowedTypes.includes(file.type))
-            return NextResponse.json({ error: 'Only JPEG, PNG, WebP, and GIF images are allowed' }, { status: 400 });
-
-        if (file.size > 5 * 1024 * 1024)
-            return NextResponse.json({ error: 'File size must be less than 5MB' }, { status: 400 });
-
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-
-        const ext = file.name.split('.').pop() || 'jpg';
-        const filename = `upload_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-
-        await mkdir(UPLOAD_DIR(), { recursive: true });
-        await writeFile(path.join(UPLOAD_DIR(), filename), buffer);
-
-        return NextResponse.json({ url: `/uploads/${filename}`, filename, originalName: file.name, size: file.size });
-
+        const { url, filename } = await saveImageUpload(file);
+        return NextResponse.json({ url, filename, originalName: file.name, size: file.size });
     } catch (err) {
-        console.error('Upload error:', err);
-        return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+        return errorResponse(err, 'Upload failed');
     }
 }
 
-/* ─── GET: List all uploaded files ────────────────── */
+/* ─── GET: List all uploaded files (logged-in users; used by the gallery picker) ── */
 export async function GET() {
     try {
-        await mkdir(UPLOAD_DIR(), { recursive: true });
-        const files = await readdir(UPLOAD_DIR());
-        const imageFiles = files.filter(f => /\.(jpe?g|png|webp|gif)$/i.test(f));
-
-        const items = await Promise.all(
-            imageFiles.map(async (filename) => {
-                const filePath = path.join(UPLOAD_DIR(), filename);
-                const info = await stat(filePath);
-                return {
-                    filename,
-                    url: `/uploads/${filename}`,
-                    size: info.size,
-                    uploadedAt: info.mtime.toISOString(),
-                };
-            })
-        );
-
-        // Sort newest first
-        items.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-        return NextResponse.json({ files: items });
-
+        await requireUser('agent');
+        return NextResponse.json({ files: await listUploads() });
     } catch (err) {
-        console.error('Gallery list error:', err);
-        return NextResponse.json({ error: 'Failed to list files' }, { status: 500 });
+        return errorResponse(err, 'Failed to list files');
     }
 }
 
-/* ─── DELETE: Remove a file ────────────────────────── */
+/* ─── DELETE: Remove a file (admins only) ───────────────────────────── */
 export async function DELETE(req: NextRequest) {
     try {
-        const { filename } = await req.json();
-        if (!filename || filename.includes('..') || filename.includes('/'))
-            return NextResponse.json({ error: 'Invalid filename' }, { status: 400 });
-
-        const filePath = path.join(UPLOAD_DIR(), filename);
-        await unlink(filePath);
+        await requireUser('admin');
+        const body = await req.json().catch(() => ({}));
+        await deleteUpload(body?.filename);
         return NextResponse.json({ success: true });
-
     } catch (err) {
-        console.error('Delete error:', err);
-        return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
+        return errorResponse(err, 'Delete failed');
     }
 }

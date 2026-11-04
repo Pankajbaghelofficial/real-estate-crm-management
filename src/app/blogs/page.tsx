@@ -1,7 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import BlogsClient from './BlogsClient';
 
-const prisma = new PrismaClient();
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1574880534246-86d7e6ce3496?q=80&w=800';
 
 // Strip HTML tags to get plain text
@@ -15,6 +14,9 @@ function readTime(content: string): string {
     const mins = Math.max(1, Math.ceil(words / 200));
     return `${mins} min read`;
 }
+
+// Rendered per request so DB content (featured properties / posts) is never a stale build-time snapshot.
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
     title: 'Blog | Sampatti Kendra — Real Estate Insights',

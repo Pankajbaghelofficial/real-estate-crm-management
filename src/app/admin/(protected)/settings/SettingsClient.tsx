@@ -1,5 +1,6 @@
 'use client';
 
+import type { SiteSettings } from '@/lib/siteSettings';
 import { useState } from 'react';
 import Link from 'next/link';
 import { saveSiteSettings, updateAdminProfile, changePassword } from './actions';
@@ -40,7 +41,7 @@ export default function SettingsPageClient({
     initialSettings,
     adminUser,
 }: {
-    initialSettings: Record<string, string>;
+    initialSettings: Record<string, string> | SiteSettings;
     adminUser: { id: number; name: string; email: string; role: string } | null;
 }) {
 
@@ -287,7 +288,7 @@ export default function SettingsPageClient({
                             </div>
                             <div>
                                 <label style={labelStyle}>New Password</label>
-                                <input name="newPassword" type="password" value={newPw} onChange={e => setNewPw(e.target.value)} style={inputStyle} placeholder="Minimum 6 characters" required />
+                                <input name="newPassword" type="password" value={newPw} onChange={e => setNewPw(e.target.value)} style={inputStyle} placeholder="Minimum 8 characters" minLength={8} required />
                             </div>
                             <div>
                                 <label style={labelStyle}>Confirm New Password</label>

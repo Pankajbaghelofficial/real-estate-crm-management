@@ -60,3 +60,6 @@ deploy-zip/
 /nest-v1
 /v4
 /v1
+
+# Example env file (no secrets) is committed
+!.env.example

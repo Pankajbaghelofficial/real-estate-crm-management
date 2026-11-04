@@ -5,6 +5,9 @@ import WhyChooseUs from '@/components/home/WhyChooseUs';
 import Testimonials from '@/components/home/Testimonials';
 import CTASection from '@/components/home/CTASection';
 
+// Rendered per request so DB content (featured properties / posts) is never a stale build-time snapshot.
+export const dynamic = 'force-dynamic';
+
 export default function Home() {
   return (
     <div>
