@@ -16,14 +16,14 @@ function cleanSlide(s: Partial<HeroSlide>): Omit<HeroSlide, 'id' | 'order'> | nu
 
 // Public read (the homepage slider shows these anyway).
 export async function getHeroSlides() {
-    const settings = getSiteSettings();
+    const settings = await getSiteSettings();
     return settings.heroSlides || [];
 }
 
 export async function updateHeroSlides(slides: HeroSlide[]) {
     await requireUser('superadmin');
     if (!Array.isArray(slides)) return { success: false };
-    const settings = getSiteSettings();
+    const settings = await getSiteSettings();
     const cleaned: HeroSlide[] = [];
     for (const s of slides.slice(0, 50)) {
         const c = cleanSlide(s);
@@ -31,7 +31,7 @@ export async function updateHeroSlides(slides: HeroSlide[]) {
         cleaned.push({ ...c, id: String(s.id ?? '').replace(/[^a-z0-9]/gi, '').slice(0, 20) || Math.random().toString(36).slice(2, 11), order: cleaned.length });
     }
     settings.heroSlides = cleaned;
-    const success = saveSiteSettings(settings);
+    const success = await saveSiteSettings(settings);
     if (success) revalidatePath('/');
     return { success };
 }
@@ -40,7 +40,7 @@ export async function addHeroSlide(slide: Omit<HeroSlide, 'id' | 'order'>) {
     await requireUser('superadmin');
     const c = cleanSlide(slide);
     if (!c) return { success: false };
-    const settings = getSiteSettings();
+    const settings = await getSiteSettings();
     if (!settings.heroSlides) settings.heroSlides = [];
 
     const newSlide: HeroSlide = {
@@ -50,20 +50,20 @@ export async function addHeroSlide(slide: Omit<HeroSlide, 'id' | 'order'>) {
     };
 
     settings.heroSlides.push(newSlide);
-    const success = saveSiteSettings(settings);
+    const success = await saveSiteSettings(settings);
     if (success) revalidatePath('/');
     return { success, slide: newSlide };
 }
 
 export async function deleteHeroSlide(id: string) {
     await requireUser('superadmin');
-    const settings = getSiteSettings();
+    const settings = await getSiteSettings();
     if (!settings.heroSlides) return { success: false };
 
     settings.heroSlides = settings.heroSlides.filter(s => s.id !== id);
     settings.heroSlides.forEach((s, i) => (s.order = i));
 
-    const success = saveSiteSettings(settings);
+    const success = await saveSiteSettings(settings);
     if (success) revalidatePath('/');
     return { success };
 }

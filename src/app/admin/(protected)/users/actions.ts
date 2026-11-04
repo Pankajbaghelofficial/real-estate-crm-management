@@ -45,11 +45,7 @@ export async function addAdminUser(formData: FormData) {
     }
 
     const hashed = await bcrypt.hash(password, 12);
-    // Use raw query for consistency with our CRM fixes
-    await prisma.$executeRaw`
-        INSERT INTO AdminUser (name, email, password, role) 
-        VALUES (${name}, ${email}, ${hashed}, ${role})
-    `;
+    await prisma.adminUser.create({ data: { name, email, password: hashed, role } });
 
     revalidatePath('/admin/users');
     return { success: true, message: `User "${name}" created successfully!` };
@@ -78,8 +74,11 @@ export async function updateAdminUser(userIdRaw: number, formData: FormData) {
     }
 
     // Check if email is taken by another user
-    const existing: { id: number }[] = await prisma.$queryRaw`SELECT id FROM AdminUser WHERE email = ${email} AND id != ${userId} LIMIT 1`;
-    if (existing.length > 0) {
+    const target = await prisma.adminUser.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!target) return { success: false, message: 'User not found.' };
+
+    const existing = await prisma.adminUser.findFirst({ where: { email, NOT: { id: userId } }, select: { id: true } });
+    if (existing) {
         return { success: false, message: 'This email is already in use by another account.' };
     }
 
@@ -88,17 +87,9 @@ export async function updateAdminUser(userIdRaw: number, formData: FormData) {
             return { success: false, message: 'New password must be at least 8 characters.' };
         }
         const hashed = await bcrypt.hash(password, 12);
-        await prisma.$executeRaw`
-            UPDATE AdminUser 
-            SET name = ${name}, email = ${email}, role = ${role}, password = ${hashed}
-            WHERE id = ${userId}
-        `;
+        await prisma.adminUser.update({ where: { id: userId }, data: { name, email, role, password: hashed } });
     } else {
-        await prisma.$executeRaw`
-            UPDATE AdminUser 
-            SET name = ${name}, email = ${email}, role = ${role}
-            WHERE id = ${userId}
-        `;
+        await prisma.adminUser.update({ where: { id: userId }, data: { name, email, role } });
     }
 
     revalidatePath('/admin/users');
@@ -114,14 +105,14 @@ export async function deleteAdminUser(userIdRaw: number) {
     if (!userId) return { success: false, message: 'Invalid user.' };
     if (userId === me.id) return { success: false, message: 'You cannot delete your own account.' };
 
-    const countResult: { count: bigint | number }[] = await prisma.$queryRaw`SELECT count(*) as count FROM AdminUser`;
-    const count = Number(countResult[0].count);
-
+    const count = await prisma.adminUser.count();
     if (count <= 1) {
         return { success: false, message: 'Cannot delete the last admin user.' };
     }
 
-    await prisma.$executeRaw`DELETE FROM AdminUser WHERE id = ${userId}`;
+    // Properties, assigned leads and activity entries are kept (FKs are ON DELETE SET NULL).
+    const { count: deleted } = await prisma.adminUser.deleteMany({ where: { id: userId } });
+    if (deleted === 0) return { success: false, message: 'User not found.' };
     revalidatePath('/admin/users');
     return { success: true, message: 'User deleted successfully.' };
 }

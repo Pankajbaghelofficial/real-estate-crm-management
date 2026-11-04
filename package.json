@@ -4,11 +4,17 @@
   "private": true,
   "scripts": {
     "dev": "node node_modules/next/dist/bin/next dev",
-    "build": "node node_modules/next/dist/bin/next build",
+    "build": "prisma generate && node node_modules/next/dist/bin/next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && node node_modules/next/dist/bin/next build",
     "start": "node node_modules/next/dist/bin/next start",
-    "lint": "node node_modules/eslint/bin/eslint.js"
+    "lint": "node node_modules/eslint/bin/eslint.js",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "node prisma/seed.js",
+    "db:import-sqlite": "node scripts/migrate-sqlite-to-postgres.mjs"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "@vercel/blob": "^2.8.2",
     "bcryptjs": "^3.0.3",
     "next": "^16.4.5",
     "next-auth": "^4.24.15",
@@ -17,8 +23,6 @@
     "sanitize-html": "^2.18.1"
   },
   "devDependencies": {
-    "@prisma/client": "^6.4.1",
-    "@prisma/config": "^7.4.1",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
@@ -28,11 +32,19 @@
     "dotenv": "^17.3.1",
     "eslint": "^9",
     "eslint-config-next": "^16.4.5",
-    "prisma": "^6.4.1",
+    "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
   "optionalDependencies": {
     "lightningcss-linux-x64-gnu": "^1.29.1"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "overrides": {
+    "@vercel/cli-config": {
+      "zod": "^4.6.7"
+    }
   }
 }

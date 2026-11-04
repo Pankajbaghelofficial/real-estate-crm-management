@@ -5,7 +5,7 @@ import SettingsPageClient from './SettingsClient';
 
 export default async function SettingsPage() {
     const user = await requirePageRole('superadmin');
-    const settings = getSiteSettings();
+    const settings = await getSiteSettings();
 
     const adminUser = await prisma.adminUser.findUnique({
         where: { id: user.id },

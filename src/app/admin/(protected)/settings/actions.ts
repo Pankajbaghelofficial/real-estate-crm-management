@@ -23,7 +23,7 @@ export async function getSiteSettings() {
 export async function saveSiteSettings(formData: FormData): Promise<Result> {
     try {
         await requireUser('superadmin');
-        const settings = readSiteSettings();
+        const settings = await readSiteSettings();
         const s = (k: string, max = 300) => String(formData.get(k) ?? '').trim().slice(0, max);
         const url = (k: string, fallback: string) => {
             const v = s(k, 2000);
@@ -52,7 +52,7 @@ export async function saveSiteSettings(formData: FormData): Promise<Result> {
             updated.faviconUrl = (await saveImageUpload(iconFile, { prefix: 'favicon', allowIco: true })).url;
         }
 
-        if (!writeSiteSettings(updated)) return { success: false, message: 'Could not save settings file.' };
+        if (!(await writeSiteSettings(updated))) return { success: false, message: 'Could not save settings file.' };
         revalidatePath('/', 'layout');
         revalidatePath('/admin', 'layout');
         revalidatePath('/admin/settings', 'page');

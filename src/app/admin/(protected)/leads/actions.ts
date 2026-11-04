@@ -196,39 +196,56 @@ export async function importLeads(leadsData: unknown[]) {
             return { success: false, error: `You can import at most ${MAX_IMPORT} leads at a time.` };
         }
 
-        let imported = 0;
         let skipped = 0;
-
+        const seen = new Set<string>();
+        const rows: { name: string; phone: string; email: string; source: string; message: string }[] = [];
         for (const raw of leadsData) {
             const data = (raw ?? {}) as Record<string, unknown>;
             const name = str(data.name, 200);
             const phone = str(data.phone, 30);
-            if (!name || !phone) {
+            if (!name || !phone || seen.has(phone)) {
                 skipped++;
                 continue;
             }
-
-            const existing = await prisma.lead.findFirst({ where: { phone }, select: { id: true } });
-            if (existing) {
-                skipped++;
-                continue;
-            }
-
-            await prisma.lead.create({
-                data: {
-                    name,
-                    phone,
-                    email: str(data.email, 200),
-                    source: str(data.source, 50) || 'Import',
-                    message: str(data.message, 5000),
-                    status: 'New',
-                    assigned_to_id: user.id,
-                    activities: {
-                        create: { user_id: user.id, action_type: 'Imported', note: `Lead imported via ${user.name || 'User'}` },
-                    },
-                },
+            seen.add(phone);
+            rows.push({
+                name,
+                phone,
+                email: str(data.email, 200),
+                source: str(data.source, 50) || 'Import',
+                message: str(data.message, 5000),
             });
-            imported++;
+        }
+
+        // Skip phones that already exist (batched lookups instead of one query per row).
+        const existing = new Set<string>();
+        for (let i = 0; i < rows.length; i += 1000) {
+            const found = await prisma.lead.findMany({
+                where: { phone: { in: rows.slice(i, i + 1000).map(r => r.phone) } },
+                select: { phone: true },
+            });
+            found.forEach(f => existing.add(f.phone));
+        }
+        const toInsert = rows.filter(r => !existing.has(r.phone));
+        skipped += rows.length - toInsert.length;
+
+        const note = `Lead imported via ${user.name || 'User'}`;
+        let imported = 0;
+        for (let i = 0; i < toInsert.length; i += 500) {
+            const chunk = toInsert.slice(i, i + 500);
+            await prisma.$transaction(
+                async tx => {
+                    const created = await tx.lead.createManyAndReturn({
+                        data: chunk.map(r => ({ ...r, status: 'New', assigned_to_id: user.id })),
+                        select: { id: true },
+                    });
+                    await tx.leadActivity.createMany({
+                        data: created.map(c => ({ lead_id: c.id, user_id: user.id, action_type: 'Imported', note })),
+                    });
+                },
+                { timeout: 30_000 }
+            );
+            imported += chunk.length;
         }
 
         revalidatePath('/admin/leads');

@@ -11,7 +11,7 @@ export default async function AdminLayout({
 }) {
     // Validates the session against the DB (deleted users are rejected).
     const user = await requirePageRole('agent');
-    const settings = getSiteSettings();
+    const settings = await getSiteSettings();
 
     return (
         <AdminLayoutClient userName={user.name || 'Admin'} userEmail={user.email} userRole={user.role} settings={settings}>

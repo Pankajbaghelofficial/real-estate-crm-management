@@ -11,7 +11,7 @@ const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-serif'
 
 // Dynamic metadata based on site settings
 export async function generateMetadata(): Promise<Metadata> {
-  const s = getSiteSettings();
+  const s = await getSiteSettings();
   return {
     title: `${s.siteName} | Luxury Real Estate in Agra`,
     description: `Buy trusted residential and commercial properties, villas, and shops in Agra with ${s.siteName}. ${s.tagline}.`,
@@ -30,12 +30,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const settings = getSiteSettings();
+  const settings = await getSiteSettings();
 
   const jsonLd = {
     '@context': 'https://schema.org',

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- plain Node.js (CommonJS) script */
 // Creates the first super admin. Run from a shell on the server (never over HTTP):
 //   ADMIN_EMAIL=you@example.com ADMIN_PASSWORD='a-strong-password' node prisma/seed.js
 // Existing users are never modified.
