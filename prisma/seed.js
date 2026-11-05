@@ -12,8 +12,13 @@ require('dotenv/config');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
+function withPgbouncer(raw) {
+    try { const u = new URL(raw); if (!u.searchParams.has('pgbouncer')) u.searchParams.set('pgbouncer', 'true'); return u.toString(); } catch { return raw; }
+}
+
 const BOOTSTRAP = process.argv.includes('--bootstrap');
-const prisma = new PrismaClient();
+// Plain queries: use the pooled connection when available (the direct one has few slots).
+const prisma = new PrismaClient(process.env.DATABASE_URL_POOLED ? { datasourceUrl: withPgbouncer(process.env.DATABASE_URL_POOLED) } : undefined);
 
 async function main() {
     const email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();

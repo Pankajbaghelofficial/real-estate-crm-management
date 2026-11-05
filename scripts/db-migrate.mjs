@@ -40,9 +40,27 @@ if (!/^postgres(ql)?:$/.test(url.protocol)) {
     fail(`${source} must be a direct postgres:// connection string for migrations (got "${url.protocol}//").`);
 }
 
+// Emergency switch: lets a deploy go out when the direct connection is unavailable
+// (e.g. its connection limit is exhausted). Only use it when no migration is pending.
+if (process.env.SKIP_DB_MIGRATE === '1') {
+    console.warn('⚠ SKIP_DB_MIGRATE=1: database migrations were NOT applied in this build.');
+    process.exit(0);
+}
+
 console.log(`Applying database migrations on ${url.hostname} (via ${source})`);
-const result = spawnSync(process.execPath, [require.resolve('prisma/build/index.js'), 'migrate', 'deploy'], {
-    stdio: 'inherit',
-    env: { ...process.env, DATABASE_URL_UNPOOLED: direct },
-});
-process.exit(result.status ?? 1);
+// The direct connection allows only a few clients; retry briefly if they are all taken.
+const ATTEMPTS = 4;
+for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    const result = spawnSync(process.execPath, [require.resolve('prisma/build/index.js'), 'migrate', 'deploy'], {
+        stdio: ['inherit', 'inherit', 'pipe'],
+        env: { ...process.env, DATABASE_URL_UNPOOLED: direct },
+        encoding: 'utf8',
+    });
+    if (result.stderr) process.stderr.write(result.stderr);
+    if (result.status === 0) process.exit(0);
+    const busy = /too many (database )?connections/i.test(result.stderr || '');
+    if (!busy || attempt === ATTEMPTS) process.exit(result.status ?? 1);
+    const waitS = 15 * attempt;
+    console.log(`Database connections are busy; retrying in ${waitS}s (attempt ${attempt + 1}/${ATTEMPTS})...`);
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, waitS * 1000);
+}

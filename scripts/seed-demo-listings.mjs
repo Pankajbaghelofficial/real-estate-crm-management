@@ -16,6 +16,10 @@ const require = createRequire(import.meta.url);
 try { require('dotenv/config'); } catch { /* optional */ }
 const { PrismaClient } = require('@prisma/client');
 
+function withPgbouncer(raw) {
+    try { const u = new URL(raw); if (!u.searchParams.has('pgbouncer')) u.searchParams.set('pgbouncer', 'true'); return u.toString(); } catch { return raw; }
+}
+
 const REMOVE = process.argv.includes('--remove');
 const BUILD = process.argv.includes('--build');
 const COUNT = 54;
@@ -176,7 +180,8 @@ async function main() {
         console.log('Demo listings: skipped (SEED_DEMO_LISTINGS is not "1").');
         return;
     }
-    const prisma = new PrismaClient();
+    // Plain queries: use the pooled connection when available (the direct one has few slots).
+    const prisma = new PrismaClient(process.env.DATABASE_URL_POOLED ? { datasourceUrl: withPgbouncer(process.env.DATABASE_URL_POOLED) } : undefined);
     try {
         if (REMOVE) {
             const { count } = await prisma.property.deleteMany({ where: { is_demo: true } });
