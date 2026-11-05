@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 
 const CARD_SELECT = {
     id: true, title: true, price: true, location: true, area_size: true,
-    property_type: true, bedrooms: true, is_featured: true,
+    property_type: true, bedrooms: true, is_featured: true, listing_type: true, is_verified: true,
     images: { take: 1, select: { image_url: true } },
 } as const;
 
@@ -32,7 +32,7 @@ const EXPLORE = [
     { title: 'Luxury Villas', text: 'Independent villas & bungalows', icon: '🏡', href: propertiesHref({ category: 'Villa' }) },
     { title: 'Plots / Land', text: 'Residential & investment plots', icon: '🗺️', href: propertiesHref({ category: 'Plot' }) },
     { title: 'Commercial', text: 'Offices & business spaces', icon: '🏢', href: propertiesHref({ category: 'Commercial' }) },
-    { title: 'Shops', text: 'Prime retail locations', icon: '🏬', href: propertiesHref({ category: 'Shop' }) },
+    { title: 'Rent a Home', text: 'Flats & houses on rent', icon: '🏘️', href: propertiesHref({ listing: 'rent' }) },
     { title: 'Sell / Rent Out', text: 'List your property for free', icon: '📢', href: '/contact' },
 ];
 

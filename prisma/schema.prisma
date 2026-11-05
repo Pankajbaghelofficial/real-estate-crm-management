@@ -27,26 +27,43 @@ model AdminUser {
 }
 
 model Property {
-  id            Int             @id @default(autoincrement())
-  title         String
-  description   String
-  price         Float
-  location      String
-  area_size     String
-  property_type String // Residential / Commercial / Villa / Shop
-  bedrooms      Int?            @default(0)
-  bathrooms     Int?            @default(0)
-  amenities     String? // comma-separated or JSON string
-  is_featured   Boolean         @default(false)
-  status        String          @default("Draft") // Draft / Published
-  created_at    DateTime        @default(now())
-  agent_id      Int? // Optional connection to an admin user
-  agent         AdminUser?      @relation(fields: [agent_id], references: [id], onDelete: SetNull)
-  images        PropertyImage[]
-  leads         Lead[]
+  id                Int             @id @default(autoincrement())
+  title             String
+  description       String
+  price             Float
+  location          String
+  area_size         String
+  property_type     String // Residential / Commercial / Villa / Shop
+  bedrooms          Int?            @default(0)
+  bathrooms         Int?            @default(0)
+  amenities         String? // comma-separated or JSON string
+  // Portal-style listing details (all optional so older listings stay valid)
+  listing_type      String          @default("Sale") // Sale / Rent
+  city              String?
+  locality          String?
+  area_sqft         Float? // numeric super built-up / plot area in sq.ft, for price per sq.ft and sorting
+  furnishing        String? // Unfurnished / Semi-Furnished / Furnished
+  possession_status String? // Ready to Move / Under Construction
+  property_age      String? // e.g. "0-1 Years"
+  floor_no          Int?
+  total_floors      Int?
+  facing            String? // North / East / ...
+  balconies         Int?
+  ownership         String? // Freehold / Leasehold / Co-operative Society / Power of Attorney
+  rera_number       String?
+  is_verified       Boolean         @default(false) // set by admins only
+  is_featured       Boolean         @default(false)
+  status            String          @default("Draft") // Draft / Published
+  created_at        DateTime        @default(now())
+  agent_id          Int? // Optional connection to an admin user
+  agent             AdminUser?      @relation(fields: [agent_id], references: [id], onDelete: SetNull)
+  images            PropertyImage[]
+  leads             Lead[]
 
   @@index([agent_id])
   @@index([status, is_featured, created_at])
+  @@index([status, listing_type, price])
+  @@index([city])
 }
 
 model PropertyImage {

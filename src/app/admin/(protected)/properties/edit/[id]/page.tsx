@@ -44,6 +44,7 @@ export default async function EditPropertyPage({ params }: { params: { id: strin
             property={clientProperty}
             action={updateAction}
             mode="edit"
+            canVerify={hasRole(user.role, 'admin')}
         />
     );
 }
