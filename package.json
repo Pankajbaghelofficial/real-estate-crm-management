@@ -5,11 +5,13 @@
   "scripts": {
     "dev": "node node_modules/next/dist/bin/next dev",
     "build": "prisma generate && node node_modules/next/dist/bin/next build",
-    "vercel-build": "prisma generate && node scripts/db-migrate.mjs && node prisma/seed.js --bootstrap && node node_modules/next/dist/bin/next build",
+    "vercel-build": "prisma generate && node scripts/db-migrate.mjs && node prisma/seed.js --bootstrap && node scripts/seed-demo-listings.mjs --build && node node_modules/next/dist/bin/next build",
     "start": "node node_modules/next/dist/bin/next start",
     "lint": "node node_modules/eslint/bin/eslint.js",
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:seed": "node prisma/seed.js",
+    "db:seed-demo": "node scripts/seed-demo-listings.mjs",
+    "db:remove-demo": "node scripts/seed-demo-listings.mjs --remove",
     "db:import-sqlite": "node scripts/migrate-sqlite-to-postgres.mjs"
   },
   "dependencies": {

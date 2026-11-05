@@ -53,6 +53,7 @@ model Property {
   rera_number       String?
   is_verified       Boolean         @default(false) // set by admins only
   is_featured       Boolean         @default(false)
+  is_demo           Boolean         @default(false) // sample data from scripts/seed-demo-listings.mjs
   status            String          @default("Draft") // Draft / Published
   created_at        DateTime        @default(now())
   agent_id          Int? // Optional connection to an admin user

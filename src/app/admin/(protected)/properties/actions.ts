@@ -153,3 +153,12 @@ export async function editProperty(idRaw: number, formData: FormData) {
     revalidatePath('/');
     redirect('/admin/properties');
 }
+
+/** Deletes every demo listing (is_demo = true). Real listings are never touched. */
+export async function removeDemoListings() {
+    await requireUser('admin');
+    await prisma.property.deleteMany({ where: { is_demo: true } });
+    revalidatePath('/admin/properties');
+    revalidatePath('/properties');
+    revalidatePath('/');
+}
