@@ -89,7 +89,7 @@ export default async function Home() {
                         Find your perfect property in <span>{settings.address.split(',')[0] || 'your city'}</span>
                     </h1>
                     <p className={styles.heroSub}>
-                        {totalCount > 0 ? `${totalCount}+ verified listings` : 'Verified listings'} · Homes, villas, plots, shops &amp; commercial spaces
+                        {totalCount > 0 ? `${totalCount}+ listings` : 'Listings'} · Homes, villas, plots, shops &amp; commercial spaces
                     </p>
                     <HomeSearch localities={localities.map(l => l.name)} />
                 </div>
