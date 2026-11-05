@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { submitLead } from '../../actions/leads';
 import { useState } from 'react';
+import { formatListingPrice, pricePerSqft, splitAmenities } from '@/lib/propertySearch';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200';
 
@@ -38,7 +39,27 @@ export default function PropertyDetailsClient({ property }: { property: any }) {
         }
     }
 
-    const amenitiesList = property.amenities ? property.amenities.split(',').map((a: string) => a.trim()) : [];
+    const amenitiesList = splitAmenities(property.amenities);
+    const isRent = property.listing_type === 'Rent';
+    const ppsf = pricePerSqft(property.price, property.area_sqft, property.listing_type);
+    const city = property.city || 'Agra';
+    const floor = property.floor_no === null || property.floor_no === undefined ? null
+        : property.floor_no === 0 ? 'Ground' : property.floor_no < 0 ? `Basement ${-property.floor_no}` : String(property.floor_no);
+    const floorText = floor && property.total_floors ? `${floor} of ${property.total_floors}` : floor || (property.total_floors ? `${property.total_floors} floors` : null);
+    const extraDetails: [string, string | number | null | undefined][] = [
+        ['Listing For', isRent ? 'Rent' : 'Sale'],
+        ['Area (sq.ft)', property.area_sqft ? Number(property.area_sqft).toLocaleString('en-IN') : null],
+        ['Price per sq.ft', ppsf],
+        ['Furnishing', property.furnishing],
+        ['Possession', property.possession_status],
+        ['Property Age', property.property_age],
+        ['Floor', floorText],
+        ['Facing', property.facing],
+        ['Balconies', property.balconies],
+        ['Ownership', property.ownership],
+        ['RERA No.', property.rera_number],
+    ];
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([property.location, city].join(', '))}`;
 
     const openLightbox = (index: number, e: React.MouseEvent) => {
         e.preventDefault();
@@ -70,8 +91,11 @@ export default function PropertyDetailsClient({ property }: { property: any }) {
                 <div className="detail-header" style={{ paddingTop: '100px' }}>
                     <div className="detail-header-flex">
                         <div className="detail-title-col">
-                            <span style={{ display: 'inline-block', padding: '4px 10px', background: '#e2e8f0', borderRadius: '4px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>For Sale</span>
+                            <span style={{ display: 'inline-block', padding: '4px 10px', background: '#e2e8f0', borderRadius: '4px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>{isRent ? 'For Rent' : 'For Sale'}</span>
                             <span style={{ display: 'inline-block', marginLeft: '8px', padding: '4px 10px', background: '#1a1a2e', color: '#fff', borderRadius: '4px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>{property.property_type}</span>
+                            {property.is_verified && (
+                                <span style={{ display: 'inline-block', marginLeft: '8px', padding: '4px 10px', background: '#dcfce7', color: '#15803d', borderRadius: '4px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>✔ Verified</span>
+                            )}
                             <h1>{property.title}</h1>
                             <p>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
@@ -79,7 +103,10 @@ export default function PropertyDetailsClient({ property }: { property: any }) {
                             </p>
                         </div>
                         <div className="detail-price-col">
-                            <span className="price-text" suppressHydrationWarning>₹{property.price.toLocaleString('en-IN')} <span className="price-sub">/ total</span></span>
+                            <span className="price-text" suppressHydrationWarning>
+                                {isRent ? `₹${property.price.toLocaleString('en-IN')}` : formatListingPrice(property.price, property.listing_type)}{' '}
+                                <span className="price-sub">{isRent ? '/ month' : ppsf ? `· ${ppsf}` : '/ total'}</span>
+                            </span>
                             <div className="action-buttons-row">
                                 <button className="action-btn-pill">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
@@ -190,11 +217,12 @@ export default function PropertyDetailsClient({ property }: { property: any }) {
                             <h3>Address</h3>
                             <div className="details-inner-grid">
                                 <div className="detail-row"><span>Address:</span> <span>{property.location}</span></div>
-                                <div className="detail-row"><span>City:</span> <span>Agra</span></div>
+                                {property.locality && <div className="detail-row"><span>Locality:</span> <span>{property.locality}</span></div>}
+                                <div className="detail-row"><span>City:</span> <span>{city}</span></div>
                                 <div className="detail-row"><span>State:</span> <span>Uttar Pradesh</span></div>
                                 <div className="detail-row"><span>Country:</span> <span>India</span></div>
                             </div>
-                            <button className="action-btn-pill" style={{ marginTop: '20px', background: '#11262d', color: '#fff', borderColor: '#11262d' }}>Open in Google Maps</button>
+                            <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="action-btn-pill" style={{ marginTop: '20px', background: '#11262d', color: '#fff', borderColor: '#11262d', display: 'inline-flex' }}>Open in Google Maps</a>
                         </div>
 
                         {/* Details Box */}
@@ -202,10 +230,12 @@ export default function PropertyDetailsClient({ property }: { property: any }) {
                             <h3>Details</h3>
                             <div className="details-inner-grid">
                                 <div className="detail-row"><span>Property Id:</span> <span>{property.id}</span></div>
-                                <div className="detail-row"><span>Price:</span> <span suppressHydrationWarning>₹{property.price.toLocaleString('en-IN')}</span></div>
+                                <div className="detail-row"><span>{isRent ? 'Rent:' : 'Price:'}</span> <span suppressHydrationWarning>₹{property.price.toLocaleString('en-IN')}{isRent ? ' / month' : ''}</span></div>
                                 <div className="detail-row"><span>Property Size:</span> <span>{property.area_size}</span></div>
                                 <div className="detail-row"><span>Property Type:</span> <span>{property.property_type}</span></div>
-                                <div className="detail-row"><span>Status:</span> <span>{property.status}</span></div>
+                                {extraDetails.filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, v]) => (
+                                    <div key={k} className="detail-row"><span>{k}:</span> <span>{v}</span></div>
+                                ))}
                             </div>
                         </div>
 
@@ -226,7 +256,7 @@ export default function PropertyDetailsClient({ property }: { property: any }) {
                     </div>
 
                     {/* Contact Sidebar */}
-                    <aside>
+                    <aside id="enquire" style={{ scrollMarginTop: '90px' }}>
                         <div className="sidebar-card">
                             <div className="sidebar-tabs">
                                 <div className="sidebar-tab active">Request Info</div>

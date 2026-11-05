@@ -3,16 +3,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { BHK_OPTIONS, BUDGET_OPTIONS, propertiesHref } from '@/lib/propertySearch';
+import { BHK_OPTIONS, BUDGET_OPTIONS, RENT_BUDGET_OPTIONS, propertiesHref } from '@/lib/propertySearch';
 import styles from './home.module.css';
 
 const TABS = [
-    { label: 'Buy', category: '' },
-    { label: 'Residential', category: 'Residential' },
-    { label: 'Villas', category: 'Villa' },
-    { label: 'Plots / Land', category: 'Plot' },
-    { label: 'Commercial', category: 'Commercial' },
-    { label: 'Shops', category: 'Shop' },
+    { label: 'Buy', category: '', listing: 'buy' },
+    { label: 'Rent', category: '', listing: 'rent' },
+    { label: 'Villas', category: 'Villa', listing: '' },
+    { label: 'Plots / Land', category: 'Plot', listing: '' },
+    { label: 'Commercial', category: 'Commercial', listing: '' },
+    { label: 'Shops', category: 'Shop', listing: '' },
 ];
 
 export default function HomeSearch({ localities }: { localities: string[] }) {
@@ -22,12 +22,13 @@ export default function HomeSearch({ localities }: { localities: string[] }) {
     const [budget, setBudget] = useState('');
     const [bhk, setBhk] = useState('');
 
-    const category = TABS[tab].category;
-    const showBhk = category === '' || category === 'Residential' || category === 'Villa';
+    const { category, listing } = TABS[tab];
+    const showBhk = category === '' || category === 'Villa';
+    const budgets = listing === 'rent' ? RENT_BUDGET_OPTIONS : BUDGET_OPTIONS;
 
     function onSubmit(e: React.FormEvent) {
         e.preventDefault();
-        router.push(propertiesHref({ q: q.trim(), category, budget, bhk: showBhk ? bhk : '' }));
+        router.push(propertiesHref({ listing, q: q.trim(), category, budget, bhk: showBhk ? bhk : '' }));
     }
 
     return (
@@ -40,7 +41,11 @@ export default function HomeSearch({ localities }: { localities: string[] }) {
                         role="tab"
                         aria-selected={tab === i}
                         className={`${styles.tab} ${tab === i ? styles.tabActive : ''}`}
-                        onClick={() => setTab(i)}
+                        onClick={() => {
+                            // Sale and rent budgets differ: reset when switching between them.
+                            if ((TABS[i].listing === 'rent') !== (listing === 'rent')) setBudget('');
+                            setTab(i);
+                        }}
                     >
                         {t.label}
                     </button>
@@ -52,6 +57,7 @@ export default function HomeSearch({ localities }: { localities: string[] }) {
 
             {/* Plain GET form: still works before JS loads */}
             <form action="/properties" method="get" onSubmit={onSubmit} className={styles.searchForm}>
+                {listing && <input type="hidden" name="listing" value={listing} />}
                 {category && <input type="hidden" name="category" value={category} />}
                 <div className={styles.searchInputWrap}>
                     <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
@@ -72,7 +78,7 @@ export default function HomeSearch({ localities }: { localities: string[] }) {
                 </div>
                 <select name="budget" value={budget} onChange={e => setBudget(e.target.value)} aria-label="Budget" className={styles.searchSelect}>
                     <option value="">Any Budget</option>
-                    {BUDGET_OPTIONS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                    {budgets.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
                 </select>
                 {showBhk && (
                     <select name="bhk" value={bhk} onChange={e => setBhk(e.target.value)} aria-label="Bedrooms" className={styles.searchSelect}>
@@ -87,7 +93,7 @@ export default function HomeSearch({ localities }: { localities: string[] }) {
                 <div className={styles.quickLinks}>
                     <span>Popular:</span>
                     {localities.slice(0, 5).map(l => (
-                        <Link key={l} href={propertiesHref({ q: l, category })}>{l}</Link>
+                        <Link key={l} href={propertiesHref({ listing, q: l, category })}>{l}</Link>
                     ))}
                 </div>
             )}

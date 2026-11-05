@@ -3,6 +3,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import GalleryPicker from '@/components/admin/GalleryPicker';
+import {
+    AMENITY_OPTIONS, FACING_OPTIONS, FURNISHING_OPTIONS, OWNERSHIP_OPTIONS,
+    POSSESSION_OPTIONS, PROPERTY_AGE_OPTIONS, PROPERTY_TYPES, splitAmenities,
+} from '@/lib/propertySearch';
 
 /* ─── Shared CSS helpers ─────────────────────────────── */
 const INPUT: React.CSSProperties = {
@@ -55,18 +59,55 @@ function TB({
 }
 
 /* ─── Main component ─────────────────────────────────── */
+export interface PropertyFormData {
+    title?: string; price?: string | number; location?: string;
+    area_size?: string; property_type?: string; status?: string;
+    description?: string; is_featured?: boolean; image_urls?: string[];
+    amenities?: string; bedrooms?: number; bathrooms?: number;
+    listing_type?: string; city?: string | null; locality?: string | null;
+    area_sqft?: number | null; furnishing?: string | null; possession_status?: string | null;
+    property_age?: string | null; floor_no?: number | null; total_floors?: number | null;
+    facing?: string | null; balconies?: number | null; ownership?: string | null;
+    rera_number?: string | null; is_verified?: boolean;
+}
+
+function SelectField({ label, name, options, value, placeholder = 'Select' }: {
+    label: string; name: string; options: readonly string[]; value?: string | null; placeholder?: string;
+}) {
+    return (
+        <div>
+            <label style={LABEL} htmlFor={`pf-${name}`}>{label}</label>
+            <select id={`pf-${name}`} name={name} defaultValue={value ?? ''} style={INPUT}>
+                <option value="">{placeholder}</option>
+                {options.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+        </div>
+    );
+}
+
+function NumberField({ label, name, value, placeholder, min = 0, step }: {
+    label: string; name: string; value?: number | null; placeholder?: string; min?: number; step?: string;
+}) {
+    return (
+        <div>
+            <label style={LABEL} htmlFor={`pf-${name}`}>{label}</label>
+            <input id={`pf-${name}`} type="number" name={name} defaultValue={value ?? ''} placeholder={placeholder} min={min} step={step} style={INPUT} />
+        </div>
+    );
+}
+
 export default function PropertyFormClient({
-    property, action, mode,
+    property, action, mode, canVerify = false,
 }: {
-    property?: {
-        title?: string; price?: string | number; location?: string;
-        area_size?: string; property_type?: string; status?: string;
-        description?: string; is_featured?: boolean; image_urls?: string[];
-        amenities?: string; bedrooms?: number; bathrooms?: number;
-    };
+    property?: PropertyFormData;
     action: (formData: FormData) => Promise<void>;
     mode: 'add' | 'edit';
+    canVerify?: boolean;
 }) {
+    const existingAmenities = splitAmenities(property?.amenities);
+    const checkedAmenities = new Set(existingAmenities.filter(a => (AMENITY_OPTIONS as readonly string[]).includes(a)));
+    const extraAmenities = existingAmenities.filter(a => !checkedAmenities.has(a)).join(', ');
+
     const [loading, setLoading] = useState(false);
     const [showColors, setShowColors] = useState(false);
     const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
@@ -239,32 +280,48 @@ export default function PropertyFormClient({
                 <div className="glass-panel" style={CARD}>
                     <h3 style={CARD_TITLE}>📋 Basic Information</h3>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                        {[
-                            { label: 'Property Title *', name: 'title', placeholder: 'e.g. Luxury Villa in Tajganj', type: 'text' },
-                            { label: 'Price (₹) *', name: 'price', placeholder: 'e.g. 2500000', type: 'text' },
-                            { label: 'Location *', name: 'location', placeholder: 'e.g. Tajganj, Agra', type: 'text' },
-                            { label: 'Area Size *', name: 'area_size', placeholder: 'e.g. 5000 Sq Ft', type: 'text' },
-                        ].map(f => (
-                            <div key={f.name}>
-                                <label style={LABEL}>{f.label}</label>
-                                <input type={f.type} name={f.name} required
-                                    defaultValue={f.name === 'price' ? String(property?.price ?? '') : (property as never)?.[f.name] ?? ''}
-                                    placeholder={f.placeholder} style={INPUT} />
-                            </div>
-                        ))}
                         <div>
-                            <label style={LABEL}>Property Type *</label>
-                            <select name="property_type" required defaultValue={property?.property_type || 'Residential'} style={INPUT}>
-                                {['Residential', 'Commercial', 'Villa', 'Shop', 'Plot'].map(t =>
-                                    <option key={t} value={t}>{t}</option>)}
+                            <label style={LABEL} htmlFor="pf-listing_type">Listing For *</label>
+                            <select id="pf-listing_type" name="listing_type" required defaultValue={property?.listing_type || 'Sale'} style={INPUT}>
+                                <option value="Sale">Sale</option>
+                                <option value="Rent">Rent / Lease</option>
                             </select>
                         </div>
                         <div>
-                            <label style={LABEL}>Status *</label>
-                            <select name="status" required defaultValue={property?.status || 'Draft'} style={INPUT}>
+                            <label style={LABEL} htmlFor="pf-property_type">Property Type *</label>
+                            <select id="pf-property_type" name="property_type" required defaultValue={property?.property_type || 'Residential'} style={INPUT}>
+                                {PROPERTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                                {property?.property_type && !(PROPERTY_TYPES as readonly string[]).includes(property.property_type) && (
+                                    <option value={property.property_type}>{property.property_type}</option>
+                                )}
+                            </select>
+                        </div>
+                        <div style={{ gridColumn: '1/-1' }}>
+                            <label style={LABEL} htmlFor="pf-title">Property Title *</label>
+                            <input id="pf-title" type="text" name="title" required defaultValue={property?.title ?? ''} placeholder="e.g. 3 BHK Apartment in Kamla Nagar" style={INPUT} />
+                        </div>
+                        <div>
+                            <label style={LABEL} htmlFor="pf-price">Price (₹) * <span style={{ textTransform: 'none', fontWeight: 400 }}>— monthly rent for Rent</span></label>
+                            <input id="pf-price" type="text" name="price" required inputMode="numeric" defaultValue={String(property?.price ?? '')} placeholder="e.g. 2500000" style={INPUT} />
+                        </div>
+                        <div>
+                            <label style={LABEL} htmlFor="pf-status">Status *</label>
+                            <select id="pf-status" name="status" required defaultValue={property?.status || 'Draft'} style={INPUT}>
                                 <option value="Draft">📝 Draft</option>
                                 <option value="Published">✅ Published</option>
                             </select>
+                        </div>
+                        <div>
+                            <label style={LABEL} htmlFor="pf-city">City</label>
+                            <input id="pf-city" type="text" name="city" defaultValue={property?.city ?? (mode === 'add' ? 'Agra' : '')} placeholder="e.g. Agra" style={INPUT} />
+                        </div>
+                        <div>
+                            <label style={LABEL} htmlFor="pf-locality">Locality</label>
+                            <input id="pf-locality" type="text" name="locality" defaultValue={property?.locality ?? ''} placeholder="e.g. Kamla Nagar" style={INPUT} />
+                        </div>
+                        <div style={{ gridColumn: '1/-1' }}>
+                            <label style={LABEL} htmlFor="pf-location">Address / Location shown on listing *</label>
+                            <input id="pf-location" type="text" name="location" required defaultValue={property?.location ?? ''} placeholder="e.g. Block C, Kamla Nagar, Agra" style={INPUT} />
                         </div>
                     </div>
                 </div>
@@ -272,38 +329,68 @@ export default function PropertyFormClient({
                 {/* ── Extra Details ── */}
                 <div className="glass-panel" style={CARD}>
                     <h3 style={CARD_TITLE}>🔢 Property Details</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px' }}>
                         <div>
-                            <label style={LABEL}>Bedrooms</label>
-                            <input type="number" name="bedrooms" defaultValue={property?.bedrooms} placeholder="e.g. 3" min={0} style={INPUT} />
+                            <label style={LABEL} htmlFor="pf-area_size">Area (as shown) *</label>
+                            <input id="pf-area_size" type="text" name="area_size" required defaultValue={property?.area_size ?? ''} placeholder="e.g. 1650 sq.ft" style={INPUT} />
                         </div>
+                        <NumberField label="Area in sq.ft (number)" name="area_sqft" value={property?.area_sqft} placeholder="e.g. 1650" step="any" />
+                        <NumberField label="Bedrooms (BHK)" name="bedrooms" value={property?.bedrooms} placeholder="e.g. 3" />
+                        <NumberField label="Bathrooms" name="bathrooms" value={property?.bathrooms} placeholder="e.g. 2" />
+                        <NumberField label="Balconies" name="balconies" value={property?.balconies} placeholder="e.g. 1" />
+                        <NumberField label="Floor No." name="floor_no" value={property?.floor_no} placeholder="0 = Ground" min={-5} />
+                        <NumberField label="Total Floors" name="total_floors" value={property?.total_floors} placeholder="e.g. 10" />
+                        <SelectField label="Furnishing" name="furnishing" options={FURNISHING_OPTIONS} value={property?.furnishing} />
+                        <SelectField label="Possession" name="possession_status" options={POSSESSION_OPTIONS} value={property?.possession_status} />
+                        <SelectField label="Property Age" name="property_age" options={PROPERTY_AGE_OPTIONS} value={property?.property_age} />
+                        <SelectField label="Facing" name="facing" options={FACING_OPTIONS} value={property?.facing} />
+                        <SelectField label="Ownership" name="ownership" options={OWNERSHIP_OPTIONS} value={property?.ownership} />
                         <div>
-                            <label style={LABEL}>Bathrooms</label>
-                            <input type="number" name="bathrooms" defaultValue={property?.bathrooms} placeholder="e.g. 2" min={0} style={INPUT} />
+                            <label style={LABEL} htmlFor="pf-rera_number">RERA No.</label>
+                            <input id="pf-rera_number" type="text" name="rera_number" defaultValue={property?.rera_number ?? ''} placeholder="Optional" style={INPUT} />
                         </div>
-                        <div>
-                            <label style={LABEL}>Property Images *</label>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+                    </div>
+                    <p style={{ fontSize: '11px', color: 'var(--text-admin-dim)', margin: '10px 0 0' }}>
+                        &quot;Area in sq.ft&quot; is used for price per sq.ft and sorting by area.
+                    </p>
+                </div>
+
+                {/* ── Amenities ── */}
+                <div className="glass-panel" style={CARD}>
+                    <h3 style={CARD_TITLE}>✨ Amenities</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+                        {AMENITY_OPTIONS.map(a => (
+                            <label key={a} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-admin)', cursor: 'pointer' }}>
+                                <input type="checkbox" name="amenity_opts" value={a} defaultChecked={checkedAmenities.has(a)}
+                                    style={{ width: '16px', height: '16px', accentColor: 'var(--accent-premium-gold)' }} />
+                                {a}
+                            </label>
+                        ))}
+                    </div>
+                    <label style={LABEL} htmlFor="pf-amenities">Other amenities (comma separated)</label>
+                    <input id="pf-amenities" type="text" name="amenities" defaultValue={extraAmenities} placeholder="e.g. Modular Kitchen, Terrace" style={INPUT} />
+                </div>
+
+                {/* ── Images ── */}
+                <div className="glass-panel" style={CARD}>
+                    <h3 style={CARD_TITLE}>🖼 Property Images</h3>
+                    <div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '10px', marginBottom: '10px' }}>
                                 {imageUrls.map((url, idx) => (
-                                    <div key={idx} style={{ position: 'relative', height: '60px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-admin)' }}>
+                                    <div key={idx} style={{ position: 'relative', height: '75px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-admin)' }}>
                                         <input type="hidden" name="image_urls" value={url} />
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img src={url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                        <button type="button" onClick={() => setImageUrls(prev => prev.filter((_, i) => i !== idx))}
+                                        <button type="button" aria-label="Remove image" onClick={() => setImageUrls(prev => prev.filter((_, i) => i !== idx))}
                                             style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(220, 38, 38, 0.8)', color: '#fff', border: 'none', width: '18px', height: '18px', borderRadius: '4px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 1 }}>✕</button>
                                     </div>
                                 ))}
-                                <button type="button" onClick={() => setShowGalleryFor('main')}
-                                    style={{ height: '60px', borderRadius: '8px', border: '2px dashed var(--border-admin)', background: 'var(--bg-admin-input)', color: 'var(--accent-premium-gold)', fontSize: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                <button type="button" aria-label="Add images" onClick={() => setShowGalleryFor('main')}
+                                    style={{ height: '75px', borderRadius: '8px', border: '2px dashed var(--border-admin)', background: 'var(--bg-admin-input)', color: 'var(--accent-premium-gold)', fontSize: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                                     ➕
                                 </button>
                             </div>
-                            <p style={{ fontSize: '11px', color: '#8b8ca7', margin: 0 }}>Select one or more images for the property gallery</p>
-                        </div>
-                        <div style={{ gridColumn: '1/-1' }}>
-                            <label style={LABEL}>Amenities (comma separated)</label>
-                            <input type="text" name="amenities" defaultValue={property?.amenities} placeholder="e.g. Parking, Garden, Gym, Pool" style={INPUT} />
-                        </div>
+                            <p style={{ fontSize: '11px', color: '#8b8ca7', margin: 0 }}>Select one or more images for the property gallery. The first image is the cover.</p>
                     </div>
                 </div>
 
@@ -528,6 +615,16 @@ export default function PropertyFormClient({
                         <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-admin)' }}>⭐ Mark as Featured Property</span>
                         <span style={{ fontSize: '12px', color: 'var(--text-admin-dim)' }}>— Shown at the top of listings</span>
                     </label>
+                    {canVerify ? (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginTop: '14px' }}>
+                            <input type="checkbox" name="is_verified" defaultChecked={property?.is_verified}
+                                style={{ width: '18px', height: '18px', accentColor: 'var(--accent-premium-gold)', cursor: 'pointer' }} />
+                            <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-admin)' }}>✔ Verified Listing</span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-admin-dim)' }}>— Documents / site checked by our team</span>
+                        </label>
+                    ) : property?.is_verified ? (
+                        <p style={{ fontSize: '12px', color: 'var(--text-admin-dim)', margin: '14px 0 0' }}>✔ This listing is verified. Only admins can change this.</p>
+                    ) : null}
                 </div>
 
                 {/* ── Actions ── */}

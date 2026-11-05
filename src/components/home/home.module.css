@@ -254,7 +254,15 @@
 .pType { left: 10px; background: rgba(9, 30, 66, .82); color: #fff; }
 .pFeatured { right: 10px; background: var(--gold); color: var(--navy); }
 .pBody { padding: 14px; display: flex; flex-direction: column; gap: 4px; }
-.pPrice { font-size: 18px; font-weight: 800; }
+.pPrice { font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pVerified {
+  font-size: 11px;
+  font-weight: 700;
+  color: #15803d;
+  background: #dcfce7;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
 .pTitle {
   font-size: 14px !important;
   font-weight: 600;

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { formatPrice } from '@/lib/propertySearch';
+import { formatListingPrice } from '@/lib/propertySearch';
 import styles from './home.module.css';
 
 export const DEFAULT_PROPERTY_IMAGE = 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=800';
@@ -13,6 +13,8 @@ export interface PropertyCardData {
     property_type: string;
     bedrooms: number | null;
     is_featured: boolean;
+    listing_type: string;
+    is_verified: boolean;
     images: { image_url: string }[];
 }
 
@@ -28,11 +30,14 @@ export default function PropertyCard({ p }: { p: PropertyCardData }) {
             <div className={styles.pImg}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={img} alt={p.title} loading="lazy" />
-                <span className={styles.pType}>{p.property_type}</span>
+                <span className={styles.pType}>{p.listing_type === 'Rent' ? 'For Rent' : p.property_type}</span>
                 {p.is_featured && <span className={styles.pFeatured}>★ Featured</span>}
             </div>
             <div className={styles.pBody}>
-                <div className={styles.pPrice}>{formatPrice(p.price)}</div>
+                <div className={styles.pPrice}>
+                    {formatListingPrice(p.price, p.listing_type)}
+                    {p.is_verified && <span className={styles.pVerified}>✔ Verified</span>}
+                </div>
                 <h3 className={styles.pTitle}>{p.title}</h3>
                 {specs.length > 0 && <div className={styles.pSpecs}>{specs.join(' · ')}</div>}
                 <div className={styles.pLoc}>📍 {p.location}</div>
