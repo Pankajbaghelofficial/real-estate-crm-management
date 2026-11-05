@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import { buildPropertyWhere, parsePropertyFilters, propertiesHref } from '@/lib/propertySearch';
 
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=800';
@@ -16,15 +17,15 @@ function formatPriceUnit(price: number) {
 export default async function PropertiesPage({
     searchParams,
 }: {
-    searchParams: Promise<{ category?: string }>;
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-    const { category } = await searchParams;
+    const filters = parsePropertyFilters(await searchParams);
+    const { category } = filters;
+    const keep = { q: filters.q, budget: filters.budget?.value, bhk: filters.bhk };
+    const hasExtraFilters = Boolean(keep.q || keep.budget || keep.bhk);
 
     const properties = await prisma.property.findMany({
-        where: {
-            status: 'Published',
-            ...(category && category !== 'All' ? { property_type: category } : {})
-        },
+        where: buildPropertyWhere(filters),
         orderBy: { created_at: 'desc' },
         include: { images: true },
     });
@@ -53,7 +54,7 @@ export default async function PropertiesPage({
                     <div className="category-filter-bar">
                         {categories.map((cat) => {
                             const isActive = (category === cat) || (!category && cat === 'All');
-                            const href = cat === 'All' ? '/properties' : `/properties?category=${encodeURIComponent(cat)}`;
+                            const href = propertiesHref({ ...keep, category: cat });
 
                             return (
                                 <Link
@@ -71,7 +72,15 @@ export default async function PropertiesPage({
 
             <div className="container pb-16">
                 <div className="mt-8 mb-4">
-                    <p style={{ color: '#666', fontSize: '0.9rem' }}>Showing <b>{properties.length}</b> properties</p>
+                    <p style={{ color: '#666', fontSize: '0.9rem' }}>
+                        Showing <b>{properties.length}</b> properties
+                        {filters.q && <> matching <b>&ldquo;{filters.q}&rdquo;</b></>}
+                        {filters.budget && <> · {filters.budget.label}</>}
+                        {filters.bhk && <> · {filters.bhk >= 4 ? '4+' : filters.bhk} BHK</>}
+                        {hasExtraFilters && (
+                            <> · <Link href={propertiesHref({ category })} style={{ color: '#2563eb', fontWeight: 600 }}>Clear search</Link></>
+                        )}
+                    </p>
                 </div>
 
                 {/* Properties Grid */}
