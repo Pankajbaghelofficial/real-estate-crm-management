@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { deleteProperty } from './actions';
+import RemoveDemoButton from './RemoveDemoButton';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -35,6 +36,7 @@ export default async function ManageProperties() {
 
     const totalPublished = properties.filter(p => p.status === 'Published').length;
     const totalDraft = properties.filter(p => p.status === 'Draft').length;
+    const demoCount = isAdmin ? properties.filter(p => p.is_demo).length : 0;
 
     return (
         <div style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -45,12 +47,15 @@ export default async function ManageProperties() {
                     <h1 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-admin)', margin: 0 }}>Manage Properties</h1>
                     <p style={{ fontSize: '13px', color: 'var(--text-admin-dim)', margin: '4px 0 0' }}>Add, edit or remove property listings</p>
                 </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                {demoCount > 0 && <RemoveDemoButton count={demoCount} />}
                 <Link href="/admin/properties/add" style={{
                     display: 'inline-flex', alignItems: 'center', gap: '6px',
                     padding: '9px 18px', borderRadius: '8px', fontSize: '13px',
                     fontWeight: 600, background: 'var(--accent-premium-gold)', color: '#0a0f2e',
                     textDecoration: 'none',
                 }}>+ Add New Property</Link>
+                </div>
             </div>
 
             {/* Top Stat Cards */}
@@ -125,6 +130,9 @@ export default async function ManageProperties() {
                                             ) : '🏠'}
                                         </div>
                                         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px', display: 'block' }}>{prop.title}</span>
+                                        {prop.is_demo && <span title="Sample data" style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#fef9c3', color: '#a16207', flexShrink: 0 }}>DEMO</span>}
+                                        {prop.listing_type === 'Rent' && <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(63,192,231,0.15)', color: 'var(--accent-premium-gold)', flexShrink: 0 }}>RENT</span>}
+                                        {prop.is_verified && <span title="Verified" style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#dcfce7', color: '#15803d', flexShrink: 0 }}>✔</span>}
                                     </div>
                                 </td>
                                 <td style={{ padding: '14px 16px', color: 'var(--text-admin-dim)' }}>📍 {prop.location}</td>
